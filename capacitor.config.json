@@ -1,5 +1,5 @@
 {
-  "appId": "com.simulador.app",
+  "appId": "com.tuempresa.simulador",
   "appName": "Simulador",
-  "webDir": "."
+  "webDir": "dist"
 }
