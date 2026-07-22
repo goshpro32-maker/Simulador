@@ -1,0 +1,6 @@
+{
+  "appId": "com.simulador.app",
+  "appName": "Simulador",
+  "webDir": ".",
+  "bundledWebRuntime": false
+}
