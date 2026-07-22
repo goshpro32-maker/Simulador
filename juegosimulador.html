@@ -1,0 +1,663 @@
+# 1. Crear la estructura de carpetas
+mkdir -p .github/workflows
+
+# 2. Crear package.json
+cat << 'EOF' > package.json
+{
+  "name": "simulador-algebra",
+  "version": "1.0.0",
+  "description": "Simulador de Álgebra Lineal 100% Offline",
+  "main": "index.js",
+  "scripts": {
+    "build": "mkdir -p www && cp index.html www/ && cp -r node_modules/mathjax/es5 www/mathjax"
+  },
+  "dependencies": {
+    "@capacitor/android": "^6.0.0",
+    "@capacitor/cli": "^6.0.0",
+    "@capacitor/core": "^6.0.0",
+    "mathjax": "^3.2.2"
+  }
+}
+EOF
+
+# 3. Crear capacitor.config.json
+cat << 'EOF' > capacitor.config.json
+{
+  "appId": "com.simulador.algebralineal",
+  "appName": "Simulador Algebra",
+  "webDir": "www",
+  "bundledWebRuntime": false
+}
+EOF
+
+# 4. Crear automatización para GitHub Actions
+cat << 'EOF' > .github/workflows/build-apk.yml
+name: Compilar APK de Android
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Descargar Código
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Configurar Java JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Configurar Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Instalar Dependencias
+        run: npm install
+
+      - name: Generar Archivos Web
+        run: npm run build
+
+      - name: Agregar Plataforma Android Capacitor
+        run: |
+          npx cap add android
+          npx cap copy android
+
+      - name: Compilar APK con Gradle
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug
+
+      - name: Subir APK como Artefacto Descargable
+        uses: actions/upload-artifact@v4
+        with:
+          name: Simulador-Algebra-Offline-APK
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+EOF
+
+# 5. Crear index.html con las 120 preguntas y MathJax Local
+cat << 'EOF' > index.html
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulador Completo de Álgebra Lineal - 120 Preguntas</title>
+    
+    <script>
+        window.MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']]
+            },
+            options: {
+                skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre']
+            }
+        };
+    </script>
+    <script id="mathjax-script" async src="mathjax/tex-chtml.js"></script>
+
+    <style>
+        :root {
+            --primary: #1e3a8a;
+            --primary-hover: #1d4ed8;
+            --accent: #d97706;
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+            --text: #1e293b;
+            --text-light: #64748b;
+            --success: #16a34a;
+            --success-bg: #f0fdf4;
+            --error: #dc2626;
+            --error-bg: #fef2f2;
+            --border: #e2e8f0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 15px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 900px;
+            background: var(--card-bg);
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.06);
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .header-info h1 {
+            color: var(--primary);
+            margin: 0 0 5px 0;
+            font-size: 1.4rem;
+        }
+
+        .header-info p {
+            color: var(--text-light);
+            margin: 0;
+            font-size: 0.85rem;
+        }
+
+        .stats-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .stat-card {
+            background: #f1f5f9;
+            padding: 6px 12px;
+            border-radius: 8px;
+            text-align: center;
+            min-width: 60px;
+        }
+
+        .stat-card .num {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        .stat-card .label {
+            font-size: 0.7rem;
+            color: var(--text-light);
+            display: block;
+        }
+
+        .btn-restart {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 8px 14px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .progress-bar-bg {
+            background-color: var(--border);
+            height: 8px;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 15px;
+        }
+
+        .progress-bar-fill {
+            background-color: var(--accent);
+            height: 100%;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .block-filters-wrapper {
+            overflow-x: auto;
+            white-space: nowrap;
+            padding-bottom: 10px;
+            margin-bottom: 15px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .filter-btn {
+            display: inline-block;
+            padding: 6px 14px;
+            margin-right: 6px;
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            background: #ffffff;
+            color: var(--text-light);
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .filter-btn.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        .question-card {
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 20px;
+            background: #ffffff;
+            margin-bottom: 15px;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .block-badge {
+            background: #e0f2fe;
+            color: #0369a1;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 700;
+        }
+
+        .question-number {
+            font-size: 0.8rem;
+            color: var(--text-light);
+            font-weight: 600;
+        }
+
+        .question-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text);
+            line-height: 1.4;
+            margin-bottom: 15px;
+        }
+
+        .options-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .option-item {
+            background: #f8fafc;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            padding: 12px 15px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            line-height: 1.3;
+        }
+
+        .option-item.correct {
+            border-color: var(--success);
+            background: var(--success-bg);
+            color: #14532d;
+            font-weight: 600;
+        }
+
+        .option-item.incorrect {
+            border-color: var(--error);
+            background: var(--error-bg);
+            color: #7f1d1d;
+        }
+
+        .feedback-box {
+            margin-top: 12px;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            display: none;
+            line-height: 1.3;
+        }
+
+        .feedback-box.correct {
+            background-color: var(--success-bg);
+            color: #14532d;
+            border: 1px solid #bbf7d0;
+        }
+
+        .feedback-box.incorrect {
+            background-color: var(--error-bg);
+            color: #7f1d1d;
+            border: 1px solid #fecaca;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .nav-btn {
+            background-color: #cbd5e1;
+            color: var(--text);
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .nav-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <div class="header-info">
+            <h1>Simulador Álgebra Lineal</h1>
+            <p>120 Preguntas Interactivas - Modo Offline</p>
+        </div>
+        <div class="stats-group">
+            <div class="stat-card">
+                <span class="num" id="correct-count">0</span>
+                <span class="label">Correctas</span>
+            </div>
+            <div class="stat-card">
+                <span class="num" id="incorrect-count">0</span>
+                <span class="label">Incorrectas</span>
+            </div>
+            <div class="stat-card">
+                <span class="num" id="progress-text">0 / 120</span>
+                <span class="label">Progreso</span>
+            </div>
+            <button class="btn-restart" onclick="restartQuiz()">Reiniciar</button>
+        </div>
+    </header>
+
+    <div class="progress-bar-bg">
+        <div class="progress-bar-fill" id="progress-fill"></div>
+    </div>
+
+    <div class="block-filters-wrapper" id="filters-container"></div>
+
+    <div class="question-card">
+        <div class="card-header">
+            <span class="block-badge" id="block-badge">Bloque 1: Vectores</span>
+            <span class="question-number" id="question-index-label">Pregunta 1 / 120</span>
+        </div>
+        <div class="question-title" id="question-title">Cargando pregunta...</div>
+        <ul class="options-list" id="options-container"></ul>
+        <div class="feedback-box" id="feedback-box"></div>
+    </div>
+
+    <div class="controls">
+        <button class="nav-btn" id="prev-btn" onclick="prevQuestion()" disabled>Anterior</button>
+        <button class="nav-btn" id="next-btn" onclick="nextQuestion()" disabled>Siguiente</button>
+    </div>
+</div>
+
+<script>
+    const questions = [
+        { id: 1, block: "Bloque 1: Vectores", question: "En el contexto de la física o ingeniería, ¿qué características fundamentales definen a un vector?", options: ["A) Su masa y su peso.", "B) Una magnitud y una dirección.", "C) Únicamente su longitud en el plano.", "D) El número de dimensiones que ocupa."], answer: 1, explanation: "Un vector se define por poseer magnitud (módulo o longitud) y dirección." },
+        { id: 2, block: "Bloque 1: Vectores", question: "Si tienes un vector formado en el plano, ¿cómo se calcula teóricamente si conoces su punto inicial ($P_0$) y su punto final ($P_1$)?", options: ["A) Sumando ambos puntos: $P_0 + P_1$", "B) Dividiendo el punto final para el inicial: $P_1 / P_0$", "C) Mediante la diferencia entre el final y el inicial: $P_1 - P_0$", "D) Multiplicando sus coordenadas."], answer: 2, explanation: "El vector que va de $P_0$ a $P_1$ se obtiene mediante la resta $P_1 - P_0$." },
+        { id: 3, block: "Bloque 1: Vectores", question: "¿Qué representa matemáticamente la 'magnitud' de un vector ($\\|v\\|$)?", options: ["A) El ángulo con respecto al eje $X$.", "B) La longitud o tamaño del vector, calculada mediante su norma euclidiana.", "C) La cantidad de componentes nulas.", "D) El determinante del vector."], answer: 1, explanation: "La magnitud o norma $\\|v\\|$ mide la distancia euclidiana desde el origen al extremo del vector." },
+        { id: 4, block: "Bloque 1: Vectores", question: "En $\\mathbb{R}^n$, ¿cómo se representa analíticamente un vector $v$?", options: ["A) Como una tupla ordenada de $n$ números reales $(v_1, v_2, \\dots, v_n)$.", "B) Únicamente como una matriz cuadrada.", "C) Como un escalar positivo.", "D) Como una función polinómica."], answer: 0, explanation: "En $\\mathbb{R}^n$, un vector es una $n$-tupla ordenada de componentes reales." },
+        { id: 5, block: "Bloque 1: Vectores", question: "¿Cómo se realiza la suma de dos vectores $u$ y $v$ en $\\mathbb{R}^n$?", options: ["A) Sumando componente a componente: $u_i + v_i$.", "B) Multiplicando sus magnitudes.", "C) Restando los extremos.", "D) Sumando solo la primera y última componente."], answer: 0, explanation: "La suma de vectores se realiza componente a componente." },
+        { id: 6, block: "Bloque 1: Vectores", question: "Si se multiplica un vector $v$ por un escalar $c < 0$, ¿qué ocurre con su dirección y sentido?", options: ["A) Cambia su dirección y mantiene su sentido.", "B) Mantiene la dirección pero invierte su sentido.", "C) Se vuelve ortogonal al vector original.", "D) Se convierte en la matriz identidad."], answer: 1, explanation: "Un escalar negativo invierte el sentido manteniendo la misma dirección (línea de acción)." },
+        { id: 7, block: "Bloque 1: Vectores", question: "¿Cómo se calcula la norma euclidiana de $v = (v_1, v_2, \\dots, v_n)$ en $\\mathbb{R}^n$?", options: ["A) $\\sum v_i$", "B) $\\sqrt{v_1^2 + v_2^2 + \\dots + v_n^2}$", "C) $v_1 \\cdot v_n$", "D) $\\max(v_i) - \\min(v_i)$"], answer: 1, explanation: "La norma es $\\|v\\| = \\sqrt{v_1^2 + v_2^2 + \\dots + v_n^2}$." },
+        { id: 8, block: "Bloque 1: Vectores", question: "¿Qué es un vector unitario $u$ en $\\mathbb{R}^n$?", options: ["A) Un vector con componentes iguales a 1.", "B) Un vector cuya norma es exactamente igual a $1$ ($\\|u\\| = 1$).", "C) Un vector de una sola dimensión.", "D) El vector nulo."], answer: 1, explanation: "Por definición, un vector es unitario si su norma es igual a 1." },
+        { id: 9, block: "Bloque 1: Vectores", question: "Si el producto escalar entre dos vectores no nulos es cero ($u \\cdot v = 0$), ¿qué relación existe entre ellos?", options: ["A) Son vectores paralelos.", "B) Son ortogonales (perpendiculares).", "C) Son idénticos.", "D) Tienen la misma dirección."], answer: 1, explanation: "Dos vectores no nulos son ortogonales si y solo si su producto escalar es 0." },
+        { id: 10, block: "Bloque 1: Vectores", question: "En $\\mathbb{R}^3$, ¿cuál es la característica principal del producto vectorial $u \\times v$?", options: ["A) Da como resultado un escalar.", "B) Es un vector perpendicular a ambos vectores $u$ y $v$.", "C) Siempre es el vector nulo.", "D) Equivale a la suma de normas."], answer: 1, explanation: "El producto vectorial da un vector perpendicular a la superficie del plano formado por $u$ y $v$." },
+        { id: 11, block: "Bloque 2: Espacios Vectoriales", question: "¿Qué es un espacio vectorial $V$ sobre un cuerpo $K$?", options: ["A) Una matriz $n \\times n$ invertible.", "B) Un conjunto no vacío con dos operaciones (suma y escalar) que satisfacen 8 axiomas.", "C) Un conjunto de números reales sin operaciones.", "D) Un sistema de ecuaciones sin solución."], answer: 1, explanation: "Un espacio vectorial es una estructura algebraica cerrada bajo suma y producto por escalar." },
+        { id: 12, block: "Bloque 2: Espacios Vectoriales", question: "¿Cuál es el elemento neutro de la suma en cualquier espacio vectorial $V$?", options: ["A) El vector nulo $\\mathbf{0}$, tal que $v + \\mathbf{0} = v$.", "B) El escalar $1$.", "C) La matriz identidad $I$.", "D) El vector unitario $e_1$."], answer: 0, explanation: "Existe un único elemento neutro $\\mathbf{0} \\in V$ tal que $v + \\mathbf{0} = v$." },
+        { id: 13, block: "Bloque 2: Espacios Vectoriales", question: "¿Qué axioma garantiza que para todo vector $v$ exista un vector $-v$ tal que $v + (-v) = \\mathbf{0}$?", options: ["A) Conmutatividad.", "B) Existencia del elemento opuesto (inverso aditivo).", "C) Distributividad escalar.", "D) Asociatividad del producto."], answer: 1, explanation: "Cada elemento $v$ posee un inverso aditivo opuesto $-v$." },
+        { id: 14, block: "Bloque 2: Espacios Vectoriales", question: "¿Cuál de los siguientes conjuntos NO constituye un espacio vectorial real?", options: ["A) $\\mathbb{R}^n$ con las operaciones habituales.", "B) El conjunto de polinomios $P_n(x)$ de grado $\\le n$.", "C) El conjunto de matrices $M_{m \\times n}$.", "D) El primer cuadrante de $\\mathbb{R}^2$ ($x \\ge 0, y \\ge 0$)."], answer: 3, explanation: "El primer cuadrante falla al multiplicar por escalares negativos (sale del conjunto)." },
+        { id: 15, block: "Bloque 2: Espacios Vectoriales", question: "En el espacio vectorial de las matrices $M_{m \\times n}$, ¿cuál es el elemento neutro aditivo?", options: ["A) La matriz identidad.", "B) La matriz nula compuesta en su totalidad por ceros.", "C) Una matriz diagonal con unos.", "D) La matriz transpuesta."], answer: 1, explanation: "El neutro aditivo es la matriz de ceros del mismo tamaño." },
+        { id: 16, block: "Bloque 2: Espacios Vectoriales", question: "En el espacio vectorial de polinomios $P_n(x)$ de grado menor o igual a $n$, ¿cuál es su dimensión?", options: ["A) $n$", "B) $n - 1$", "C) $n + 1$", "D) $2n$"], answer: 2, explanation: "La base canónica es $\\{1, x, x^2, \\dots, x^n\\}$, la cual contiene $n + 1$ elementos." },
+        { id: 17, block: "Bloque 2: Espacios Vectoriales", question: "¿Qué propiedad distributiva debe cumplirse respecto a la suma de escalares $(c + d)$ con un vector $v$?", options: ["A) $(c + d)v = cv + dv$", "B) $c(dv) = (cd)v$", "C) $cv + d = c(v + d)$", "D) $(cd)v = cv + dv$"], answer: 0, explanation: "Es la distributividad del producto escalar respecto a la suma de escalares." },
+        { id: 18, block: "Bloque 2: Espacios Vectoriales", question: "¿Qué ocurre al multiplicar el escalar $0$ por cualquier vector $v$ en un espacio vectorial?", options: ["A) Se obtiene siempre el vector nulo $\\mathbf{0}$.", "B) Se obtiene el escalar $1$.", "C) Se obtiene el mismo vector $v$.", "D) Indeterminado."], answer: 0, explanation: "Por axiomas, $0 \\cdot v = \\mathbf{0}$ para todo vector $v$." },
+        { id: 19, block: "Bloque 2: Espacios Vectoriales", question: "Si $c \\cdot v = \\mathbf{0}$ en un espacio vectorial, ¿qué se deduce?", options: ["A) $c = 1$ o $v = \\mathbf{0}$.", "B) El escalar $c = 0$ o el vector $v = \\mathbf{0}$.", "C) $c = 1$ y $v = 1$.", "D) $v$ es perpendicular a $c$."], answer: 1, explanation: "Un producto nulo requiere que el escalar sea cero o el vector sea nulo." },
+        { id: 20, block: "Bloque 2: Espacios Vectoriales", question: "¿El conjunto de funciones continuas $f: \\mathbb{R} \\to \\mathbb{R}$ es un espacio vectorial?", options: ["A) Sí, es un espacio vectorial de dimensión infinita.", "B) No, porque no contiene funciones nulas.", "C) Únicamente si son funciones lineales.", "D) Solo si su grado es menor a 2."], answer: 0, explanation: "Forman un espacio vectorial cerrado bajo suma y producto escalar de dimensión infinita." },
+        { id: 21, block: "Bloque 3: Subespacios Vectoriales", question: "¿Qué es un subespacio vectorial $W$ de un espacio $V$?", options: ["A) Cualquier subconjunto de $V$.", "B) Un subconjunto no vacío de $V$ que cumple las propiedades de espacio vectorial con las mismas operaciones.", "C) Las matrices de determinante cero.", "D) La inversa de $V$."], answer: 1, explanation: "Un subespacio es un subconjunto no vacío cerrado bajo la suma y el producto escalar." },
+        { id: 22, block: "Bloque 3: Subespacios Vectoriales", question: "¿Cuáles son las condiciones clave para verificar que $W$ es subespacio de $V$?", options: ["A) Que sea finito y tenga matriz inversa.", "B) Que contenga ceros y unos en la diagonal.", "C) $\\mathbf{0} \\in W$, cerrado bajo suma ($u+v \\in W$), y cerrado bajo escalar ($cu \\in W$).", "D) Que $\\det(W) = 0$."], answer: 2, explanation: "Las tres condiciones esenciales para probar que un conjunto es subespacio." },
+        { id: 23, block: "Bloque 3: Subespacios Vectoriales", question: "¿Cuál de las siguientes afirmaciones sobre el vector nulo $\\mathbf{0}$ en un subespacio $W$ es correcta?", options: ["A) Todo subespacio $W$ debe contener obligatoriamente a $\\mathbf{0}$.", "B) $\\mathbf{0}$ nunca pertenece a un subespacio.", "C) Solo pertenece a subespacios de dimensión 1.", "D) Depende de los escalares."], answer: 0, explanation: "Si un subconjunto no contiene al vector nulo, automáticamente no es subespacio." },
+        { id: 24, block: "Bloque 3: Subespacios Vectoriales", question: "¿Qué es una combinación lineal de los vectores $v_1, v_2, \\dots, v_k$?", options: ["A) El producto vectorial de todos ellos.", "B) Un vector de la forma $c_1 v_1 + c_2 v_2 + \\dots + c_k v_k$ con escalares $c_i$.", "C) El determinante de la matriz que forman.", "D) La división de sus normas."], answer: 1, explanation: "Una combinación lineal es una suma de vectores ponderada por escalares." },
+        { id: 25, block: "Bloque 3: Subespacios Vectoriales", question: "¿Qué es el espacio generado $\\text{Span}(S)$ por un conjunto de vectores $S$?", options: ["A) El conjunto de todas las combinaciones lineales posibles de los vectores de $S$.", "B) El mayor valor propio.", "C) La norma máxima de los vectores.", "D) La intersección con el eje $Y$."], answer: 0, explanation: "El $\\text{Span}(S)$ es el subespacio formado por todas las combinaciones lineales de $S$." },
+        { id: 26, block: "Bloque 3: Subespacios Vectoriales", question: "¿El espacio generado por cualquier subconjunto no vacío $S$ de $V$ es siempre un subespacio vectorial?", options: ["A) Sí, siempre forma un subespacio de $V$.", "B) No, solo si $S$ es linealmente independiente.", "C) Depende de si son ortogonales.", "D) No, nunca."], answer: 0, explanation: "El generado $\\text{Span}(S)$ es siempre el subespacio más pequeño de $V$ que contiene a $S$." },
+        { id: 27, block: "Bloque 3: Subespacios Vectoriales", question: "Si $W_1$ y $W_2$ son subespacios de $V$, ¿qué se afirma sobre su intersección $W_1 \\cap W_2$?", options: ["A) Nunca contiene a $\\mathbf{0}$.", "B) Siempre es un subespacio vectorial de $V$.", "C) Es una matriz singular.", "D) Es siempre vacía."], answer: 1, explanation: "La intersección de subespacios vectoriales es siempre un subespacio vectorial." },
+        { id: 28, block: "Bloque 3: Subespacios Vectoriales", question: "¿La unión de dos subespacios vectoriales ($W_1 \\cup W_2$) es siempre un subespacio de $V$?", options: ["A) Sí, siempre.", "B) Nunca.", "C) No necesariamente; solo si uno está contenido en el otro.", "D) Solo si la dimensión es par."], answer: 2, explanation: "La unión generalmente no es cerrada bajo la suma a menos que $W_1 \\subseteq W_2$ o $W_2 \\subseteq W_1$." },
+        { id: 29, block: "Bloque 3: Subespacios Vectoriales", question: "¿Qué representa el subespacio trivial de un espacio $V$?", options: ["A) Todo el espacio $V$.", "B) El conjunto formado únicamente por el vector nulo $\\{\\mathbf{0}\\}$.", "C) Los números primos.", "D) La matriz identidad."], answer: 1, explanation: "El subespacio formado exclusivamente por $\\{\\mathbf{0}\\}$ es el subespacio trivial." },
+        { id: 30, block: "Bloque 3: Subespacios Vectoriales", question: "Para verificar si $v \\in \\text{Span}(v_1, v_2)$, ¿qué se plantea?", options: ["A) El sistema $c_1 v_1 + c_2 v_2 = v$ y verificar si tiene solución.", "B) $\\det(v_1 + v_2)$.", "C) $v_1 \\cdot v_2 = 1$.", "D) La inversa de $v$."], answer: 0, explanation: "El vector $v$ pertenece al generado si existen escalares $c_1, c_2$ que satisfagan la ecuación." },
+        { id: 31, block: "Bloque 4: Base y Dimensión", question: "¿Cuándo un conjunto de vectores $\\{v_1, v_2, \\dots, v_k\\}$ es Linealmente Independiente (L.I.)?", options: ["A) Si $c_1 v_1 + \\dots + c_k v_k = \\mathbf{0}$ implica que al menos un $c_i > 0$.", "B) Si la única combinación lineal que da $\\mathbf{0}$ es con todos los escalares $c_i = 0$.", "C) Si todos los vectores son paralelos.", "D) Si su determinante es cero."], answer: 1, explanation: "Son L.I. si la única solución a la combinación nula es la trivial ($c_1 = c_2 = \\dots = c_k = 0$). " },
+        { id: 32, block: "Bloque 4: Base y Dimensión", question: "¿Qué ocurre si un conjunto de vectores contiene al vector nulo $\\mathbf{0}$?", options: ["A) Es linealmente independiente.", "B) Es una base del espacio.", "C) Es automáticamente Linealmente Dependiente (L.D.).", "D) Aumenta la dimensión."], answer: 2, explanation: "Cualquier conjunto con el vector nulo es L.D. porque $1 \\cdot \\mathbf{0} = \\mathbf{0}$ ofrece una solución no trivial." },
+        { id: 33, block: "Bloque 4: Base y Dimensión", question: "Si un vector de un conjunto $S$ es combinación lineal de los demás, el conjunto $S$ es:", options: ["A) Linealmente Dependiente (L.D.).", "B) Linealmente Independiente (L.I.).", "C) Una base ortonormal.", "D) Trivial."], answer: 0, explanation: "La dependencia lineal equivale a que un vector dependa directamente de otros en el conjunto." },
+        { id: 34, block: "Bloque 4: Base y Dimensión", question: "¿Qué es una Base de un espacio vectorial $V$?", options: ["A) Un subconjunto cualquiera de $V$.", "B) Un conjunto de vectores linealmente independiente que genera a $V$.", "C) La matriz de coeficientes.", "D) Una fila de ceros."], answer: 1, explanation: "Una base es un conjunto generador minimal e independiente." },
+        { id: 35, block: "Bloque 4: Base y Dimensión", question: "¿Cómo se define la Dimensión de un espacio vectorial $V$ de dimensión finita?", options: ["A) Como el número de vectores que integran cualquiera de sus bases.", "B) Como la suma de sus componentes.", "C) Como el rango de su matriz.", "D) Como el número de filas."], answer: 0, explanation: "La dimensión $\\text{dim}(V)$ es el número de elementos en una base de $V$." },
+        { id: 36, block: "Bloque 4: Base y Dimensión", question: "¿Cuál es la dimensión del espacio vectorial $\\mathbb{R}^n$?", options: ["A) $1$", "B) $n - 1$", "C) $n$", "D) $n^2$"], answer: 2, explanation: "La base canónica de $\\mathbb{R}^n$ contiene exactamente $n$ vectores." },
+        { id: 37, block: "Bloque 4: Base y Dimensión", question: "¿Cuál es la base canónica de $\\mathbb{R}^2$?", options: ["A) $\\{(1, 0), (0, 1)\\}$", "B) $\\{(1, 1), (0, 0)\\}$", "C) $\\{(0, 1), (1, 1)\\}$", "D) $\\{(2, 0), (0, 2)\\}$"], answer: 0, explanation: "Los vectores canónicos estándar en $\\mathbb{R}^2$ son $e_1=(1,0)$ y $e_2=(0,1)$." },
+        { id: 38, block: "Bloque 4: Base y Dimensión", question: "Si un espacio $V$ tiene dimensión $n$, ¿cuántos vectores L.I. como máximo puede contener?", options: ["A) Infinitos", "B) Máximo $n$ vectores", "C) $n + 1$ vectores", "D) $2n$ vectores"], answer: 1, explanation: "Cualquier conjunto con más de $n$ vectores en un espacio de dimensión $n$ es L.D." },
+        { id: 39, block: "Bloque 4: Base y Dimensión", question: "Si un espacio tiene dimensión $n$, ¿cuántos vectores son necesarios como mínimo para generarlo?", options: ["A) $n - 1$ vectores", "B) Al menos $n$ vectores", "C) $1$ vector", "D) $n + 2$ vectores"], answer: 1, explanation: "Se necesitan por lo menos $n$ vectores para lograr generar todo el espacio $V$." },
+        { id: 40, block: "Bloque 4: Base y Dimensión", question: "¿Qué representa el rango de una matriz?", options: ["A) El número máximo de filas o columnas linealmente independientes.", "B) El número de ceros en la matriz.", "C) El determinante de la matriz.", "D) Las variables libres."], answer: 0, explanation: "El rango es la dimensión del espacio fila o columna (vectores L.I.)." },
+        { id: 41, block: "Bloque 5: Transformaciones Lineales", question: "¿Qué es una transformación lineal $T: V \\to W$?", options: ["A) Una función cuadrática entre matrices.", "B) Una función que preserva las operaciones de suma vectorial y producto por escalar.", "C) Una operación que reduce el tamaño de una matriz.", "D) Un sistema inconsistente."], answer: 1, explanation: "Una transformación lineal satisface $T(u+v)=T(u)+T(v)$ y $T(cv)=cT(v)$." },
+        { id: 42, block: "Bloque 5: Transformaciones Lineales", question: "¿Cuáles son las dos condiciones de linealidad para $T: V \\to W$?", options: ["A) $T(u + v) = T(u) + T(v)$ y $T(c v) = c T(v)$", "B) $T(u v) = T(u)T(v)$ y $T(0) = 1$", "C) $T(u - v) = 0$ y $T(v) = v^2$", "D) $\\det(T) = 1$"], answer: 0, explanation: "Preservación de la suma (aditividad) y preservación del escalar (homogeneidad)." },
+        { id: 43, block: "Bloque 5: Transformaciones Lineales", question: "Al aplicar una transformación lineal $T$ al vector nulo $\\mathbf{0}_V$, ¿qué se obtiene?", options: ["A) El escalar $1$.", "B) Siempre el vector nulo $\\mathbf{0}_W$.", "C) Indeterminado.", "D) $(1, 1, \\dots, 1)$."], answer: 1, explanation: "Toda transformación lineal transforma el elemento neutro $\\mathbf{0}_V$ en $\\mathbf{0}_W$." },
+        { id: 44, block: "Bloque 5: Transformaciones Lineales", question: "¿Cómo se define el Núcleo o Kernel $\\text{Ker}(T)$ de $T: V \\to W$?", options: ["A) $\\{v \\in V \\mid T(v) = \\mathbf{0}_W\\}$", "B) $\\{w \\in W \\mid w = T(v)\\}$", "C) La matriz inversa de $T$.", "D) La dimensión de $W$."], answer: 0, explanation: "El núcleo es el conjunto de vectores del dominio que se transforman en el vector nulo." },
+        { id: 45, block: "Bloque 5: Transformaciones Lineales", question: "¿Cómo se define la Imagen $\\text{Im}(T)$ de $T: V \\to W$?", options: ["A) Los vectores que van al vector nulo.", "B) El determinante de la transformación.", "C) $\\{w \\in W \\mid \\exists v \\in V, T(v) = w\\}$", "D) Los escalares de la matriz."], answer: 2, explanation: "La imagen es el subconjunto de $W$ formado por todas las imágenes posibles de $v \\in V$." },
+        { id: 46, block: "Bloque 5: Transformaciones Lineales", question: "¿Qué establece el Teorema de la Nulidad y el Rango para $T: V \\to W$?", options: ["A) $\\text{dim}(V) = \\text{dim}(\\text{Ker}(T)) + \\text{dim}(\\text{Im}(T))$", "B) $\\text{dim}(W) = \\text{dim}(\\text{Ker}(T)) - \\text{dim}(\\text{Im}(T))$", "C) $\\text{dim}(\\text{Ker}(T)) = \\text{dim}(\\text{Im}(T))$", "D) $\\text{dim}(V) \\cdot \\text{dim}(W) = \\text{Rango}$"], answer: 0, explanation: "La dimensión del espacio de partida equivale a la nulidad más el rango." },
+        { id: 47, block: "Bloque 5: Transformaciones Lineales", question: "¿Cuándo se dice que $T: V \\to W$ es inyectiva?", options: ["A) Cuando $\\text{Im}(T) = W$.", "B) Si y solo si $\\text{Ker}(T) = \\{\\mathbf{0}_V\\}$.", "C) Si $\\text{dim}(V) > \\text{dim}(W)$.", "D) Si $\\det(T) = 0$."], answer: 1, explanation: "Una transformación lineal es inyectiva si y solo si su núcleo consta únicamente del vector nulo." },
+        { id: 48, block: "Bloque 5: Transformaciones Lineales", question: "¿Cuándo se dice que $T: V \\to W$ es sobreyectiva?", options: ["A) Cuando $\\text{Im}(T) = W$.", "B) Cuando $\\text{Ker}(T) = V$.", "C) Solo si $V = \\mathbb{R}^2$.", "D) Si la nulidad es mayor a 0."], answer: 0, explanation: "Es sobreyectiva si la imagen abarca todo el espacio de llegada $W$." },
+        { id: 49, block: "Bloque 5: Transformaciones Lineales", question: "¿Qué es un Isomorfismo en álgebra lineal?", options: ["A) Una transformación no invertible.", "B) Una transformación lineal biyectiva (inyectiva y sobreyectiva).", "C) Una matriz rectangular.", "D) Una proyección ortogonal."], answer: 1, explanation: "Un isomorfismo es una transformación lineal biyectiva que preserva la estructura de espacio vectorial." },
+        { id: 50, block: "Bloque 5: Transformaciones Lineales", question: "¿Toda transformación lineal $T: \\mathbb{R}^n \\to \\mathbb{R}^m$ se representa con una matriz $A_{m \\times n}$?", options: ["A) Sí, siempre existe una matriz estándar asociada $A$.", "B) No, solo de $\\mathbb{R}^2$ a $\\mathbb{R}^2$.", "C) Únicamente si $n > m$.", "D) No, jamás."], answer: 0, explanation: "Toda transformación lineal de dimensión finita tiene una representación matricial estándar." },
+        { id: 51, block: "Bloque 6: Ortogonalidad", question: "¿Qué es un espacio con producto interno?", options: ["A) Una matriz sin determinante.", "B) Un espacio vectorial con una función que satisface simetría, linealidad y definida positiva.", "C) Vectores dependientes.", "D) Un sistema inconsistente."], answer: 1, explanation: "Un producto interno generaliza el producto escalar asignando un número real a dos vectores." },
+        { id: 52, block: "Bloque 6: Ortogonalidad", question: "¿Qué establece la Desigualdad de Cauchy-Schwarz?", options: ["A) $|u \\cdot v| \\le \\|u\\| \\|v\\|$", "B) \\|u + v\\| = \\|u\\| + \\|v\\|", "C) $u \\cdot v \\ge \\|u\\| / \\|v\\|$", "D) $|u \\cdot v| = \\|u\\|^2 + \\|v\\|^2$"], answer: 0, explanation: "Acota el valor absoluto del producto escalar por el producto de sus normas." },
+        { id: 53, block: "Bloque 6: Ortogonalidad", question: "¿Cuándo se dice que un conjunto de vectores es Ortogonal?", options: ["A) Si su suma da $\\mathbf{0}$.", "B) Cuando cualquier par de vectores distintos dentro del conjunto cumple $v_i \\cdot v_j = 0$.", "C) Si sus normas valen $0$.", "D) Si forman una matriz triangular."], answer: 1, explanation: "Todos los pares de vectores distintos dentro del conjunto son mutuamente perpendiculares." },
+        { id: 54, block: "Bloque 6: Ortogonalidad", question: "¿Qué propiedad adicional tiene un conjunto Ortonormal sobre uno Ortogonal?", options: ["A) Además de ser ortogonales, cada vector tiene norma $\\|v_i\\| = 1$.", "B) Que todos los vectores son ceros.", "C) Que son linealmente dependientes.", "D) Dimensión nula."], answer: 0, explanation: "Ortonormal = Ortogonal + vectores con norma unitaria." },
+        { id: 55, block: "Bloque 6: Ortogonalidad", question: "¿Un conjunto de vectores ortogonales no nulos es siempre Linealmente Independiente?", options: ["A) Sí, la ortogonalidad entre vectores no nulos implica L.I.", "B) No, siempre son L.D.", "C) Solo en $\\mathbb{R}^3$.", "D) Depende de la matriz."], answer: 0, explanation: "Cualquier conjunto ortogonal de vectores no nulos es automáticamente linealmente independiente." },
+        { id: 56, block: "Bloque 6: Ortogonalidad", question: "¿Cuál es la función del proceso de Gram-Schmidt?", options: ["A) Calcular determinantes $3 \\times 3$.", "B) Convertir una base cualquiera en una base ortogonal u ortonormal.", "C) Hallar valores propios.", "D) Resolver sistemas no lineales."], answer: 1, explanation: "Gram-Schmidt toma una base arbitraria y construye una base ortogonal/ortonormal para el mismo espacio." },
+        { id: 57, block: "Bloque 6: Ortogonalidad", question: "¿Cómo se define el Complemento Ortogonal $W^\\perp$ de un subespacio $W$?", options: ["A) Los vectores en $W$.", "B) Las matrices inversas.", "C) $\\{v \\in V \\mid v \\cdot w = 0, \\forall w \\in W\\}$", "D) $\\det(W)$"], answer: 2, explanation: "Es el conjunto de todos los vectores perpendiculares a cada vector de $W$." },
+        { id: 58, block: "Bloque 6: Ortogonalidad", question: "En $\\mathbb{R}^n$, ¿cuál es la relación de dimensiones entre $W$ y $W^\\perp$?", options: ["A) $\\text{dim}(W) + \\text{dim}(W^\\perp) = n$", "B) $\\text{dim}(W) \\cdot \\text{dim}(W^\\perp) = n$", "C) $\\text{dim}(W) = \\text{dim}(W^\\perp)$", "D) $\\text{dim}(W^\\perp) = n + 1$"], answer: 0, explanation: "La suma de dimensiones de un subespacio y su complemento ortogonal es igual a la dimensión total $n$." },
+        { id: 59, block: "Bloque 6: Ortogonalidad", question: "¿Qué representa la proyección ortogonal de $v$ sobre un subespacio $W$?", options: ["A) El vector más lejano.", "B) El vector en $W$ que está a la menor distancia posible de $v$.", "C) Un escalar negativo.", "D) La norma de $v$."], answer: 1, explanation: "Es la mejor aproximación a $v$ dentro del subespacio $W$ (distancia mínima)." },
+        { id: 60, block: "Bloque 6: Ortogonalidad", question: "Si $Q$ es una matriz ortogonal $n \\times n$, ¿qué cumple su transpuesta $Q^T$?", options: ["A) $Q^T Q = I$, por lo que $Q^{-1} = Q^T$.", "B) $Q^T = 0$.", "C) $\\det(Q^T) = 0$.", "D) $Q^T = -Q$."], answer: 0, explanation: "Una matriz es ortogonal si su transpuesta equivale a su inversa: $Q^{-1} = Q^T$." },
+        { id: 61, block: "Bloque 7: Autovalores", question: "En $A v = \\lambda v$ ($v \\neq \\mathbf{0}$), ¿qué representan $\\lambda$ y $v$?", options: ["A) $\\lambda$ es traza, $v$ determinante.", "B) $\\lambda$ es el valor propio (autovalor) y $v$ es su vector propio (autovector).", "C) $\\lambda$ es una matriz, $v$ escalar.", "D) El orden de la matriz."], answer: 1, explanation: "$\\lambda$ es el escalar (autovalor) y $v$ el vector no nulo asociado (autovector)." },
+        { id: 62, block: "Bloque 7: Autovalores", question: "¿Cómo se calcula la Ecuación Característica para hallar los autovalores de $A$?", options: ["A) $\\det(A - \\lambda I) = 0$", "B) $A + \\lambda I = 0$", "C) $\\det(A) \\lambda = 1$", "D) $A^T \\lambda = I$"], answer: 0, explanation: "Los autovalores son las raíces de la ecuación característica $\\det(A - \\lambda I) = 0$." },
+        { id: 63, block: "Bloque 7: Autovalores", question: "¿Qué es $P(\\lambda) = \\det(A - \\lambda I)$?", options: ["A) La inversa de $A$.", "B) La matriz adjunta.", "C) El Polinomio Característico de $A$.", "D) El rango."], answer: 2, explanation: "Es el polinomio algebraico de grado $n$ en término de $\\lambda$." },
+        { id: 64, block: "Bloque 7: Autovalores", question: "¿Cómo se define el autoespacio $E_\\lambda$ asociado a $\\lambda$?", options: ["A) El conjunto de soluciones del sistema homogéneo $(A - \\lambda I)v = \\mathbf{0}$.", "B) Traza dividida para el determinante.", "C) La diagonal secundaria.", "D) Matriz de cofactores."], answer: 0, explanation: "$E_\\lambda = \\text{Ker}(A - \\lambda I)$, conteniendo todos los autovectores asociados a $\\lambda$ y al vector nulo." },
+        { id: 65, block: "Bloque 7: Autovalores", question: "¿Cuándo una matriz cuadrada $A_{n \\times n}$ es Diagonalizable?", options: ["A) Si $\\det(A) = 0$.", "B) Si posee $n$ vectores propios linealmente independientes.", "C) Solo si sus entradas son positivas.", "D) Si es triangular inferior."], answer: 1, explanation: "Una matriz es diagonalizable si y solo si posee una base de $n$ autovectores L.I." },
+        { id: 66, block: "Bloque 7: Autovalores", question: "Si $A$ es diagonalizable, ¿cuál es su factorización espectral?", options: ["A) $A = P D P^{-1}$", "B) $A = D + P$", "C) $A = P^T D^T$", "D) $A = \\det(P) D$"], answer: 0, explanation: "Donde $P$ contiene los autovectores en columna y $D$ los autovalores en la diagonal." },
+        { id: 67, block: "Bloque 7: Autovalores", question: "¿Qué valores integran la diagonal principal de $D$ en $A = P D P^{-1}$?", options: ["A) Ceros.", "B) Los valores propios (autovalores) de $A$.", "C) La primera columna de $A$.", "D) La inversa de $A$."], answer: 1, explanation: "La matriz $D$ contiene en su diagonal los autovalores correspondientes a las columnas de $P$." },
+        { id: 68, block: "Bloque 7: Autovalores", question: "¿Qué representan las columnas de la matriz de paso $P$?", options: ["A) Los vectores propios (autovectores) linealmente independientes.", "B) La base canónica.", "C) Los términos independientes.", "D) Los menores de $A$."], answer: 0, explanation: "Las columnas de $P$ son los $n$ autovectores ordenados de la matriz $A$." },
+        { id: 69, block: "Bloque 7: Autovalores", question: "¿Toda matriz simétrica real $A$ es diagonalizable?", options: ["A) Sí, siempre es diagonalizable mediante una matriz ortogonal.", "B) No, nunca.", "C) Solo si es $2 \\times 2$.", "D) Depende del rango."], answer: 0, explanation: "Por el Teorema Espectral, toda matriz simétrica real es diagonalizable ortogonalmente." },
+        { id: 70, block: "Bloque 7: Autovalores", question: "¿A qué equivale la traza de una matriz $A$ en función de sus autovalores?", options: ["A) Al producto de sus autovalores.", "B) A la suma de todos sus valores propios $\\sum \\lambda_i$.", "C) Siempre a $0$.", "D) A la raíz cuadrada de los autovalores."], answer: 1, explanation: "La traza es la suma de los autovalores, mientras que el determinante es el producto de los mismos." },
+        { id: 71, block: "Bloque 8: Matrices e Inversa", question: "¿Cómo se clasifica a una matriz cuadrada $A_{n \\times n}$ si existe $A^{-1}$ tal que $A A^{-1} = A^{-1} A = I_n$?", options: ["A) Singular", "B) Regular o invertible", "C) Nula", "D) Simétrica estricta"], answer: 1, explanation: "Una matriz que posee inversa se conoce como regular o invertible." },
+        { id: 72, block: "Bloque 8: Matrices e Inversa", question: "Según las propiedades formales de la matriz inversa, ¿a qué equivale $(A^{-1})^{-1}$?", options: ["A) $I$", "B) $A^T$", "C) $A$", "D) $c^{-1}$"], answer: 2, explanation: "La doble inversa devuelve la matriz original $A$." },
+        { id: 73, block: "Bloque 8: Matrices e Inversa", question: "¿A qué equivale la expresión $(A^T)^{-1}$?", options: ["A) $(A^{-1})^T$", "B) $A^{-1} A^T$", "C) $(A^T)^T$", "D) $I^T$"], answer: 0, explanation: "La inversa de la transpuesta equivale a la transpuesta de la inversa." },
+        { id: 74, block: "Bloque 8: Matrices e Inversa", question: "Al calcular la inversa de un producto de matrices invertibles $(A B)^{-1}$, ¿cuál es el resultado?", options: ["A) $A^{-1} B^{-1}$", "B) $B^{-1} A^{-1}$", "C) $(B A)^{-1}$", "D) $A^T B^T$"], answer: 1, explanation: "El producto de inversas invierte el orden de los factores: $(AB)^{-1} = B^{-1}A^{-1}$." },
+        { id: 75, block: "Bloque 8: Matrices e Inversa", question: "¿Cómo se calcula la inversa del producto por un escalar $(c A)^{-1}$ con $c \\neq 0$?", options: ["A) $c A^{-1}$", "B) $-c A^{-1}$", "C) $c^{-1} A^{-1} = \\frac{1}{c} A^{-1}$", "D) $(cA)^T$"], answer: 2, explanation: "El escalar sale invertido como $1/c$ multiplicando a $A^{-1}$." },
+        { id: 76, block: "Bloque 8: Matrices e Inversa", question: "Al aplicar eliminación de Gauss-Jordan para hallar $A^{-1}$, ¿cuál es el planteamiento inicial?", options: ["A) Multiplicar $A$ por $b$.", "B) Calcular $\\det(A)$.", "C) Plantear la matriz aumentada $(A \\mid I_n)$.", "D) Llenar la diagonal de ceros."], answer: 2, explanation: "Se coloca la identidad a la derecha $(A \\mid I)$ y se transforma el lado izquierdo mediante operaciones elementales." },
+        { id: 77, block: "Bloque 8: Matrices e Inversa", question: "Durante la reducción por filas de $(A \\mid I)$, ¿qué indica que $A$ NO es invertible?", options: ["A) Si el lado derecho se convierte en $I$.", "B) Si aparece una fila completa de ceros en la parte izquierda.", "C) Si los elementos diagonales son $1$.", "D) Si crece de tamaño."], answer: 1, explanation: "Una fila nula implica que el rango es menor que $n$, por lo que no existe inversa (matriz singular)." },
+        { id: 78, block: "Bloque 8: Matrices e Inversa", question: "En la ecuación matricial $A x = b$, ¿qué representa $A$?", options: ["A) Las incógnitas.", "B) La matriz de coeficientes del sistema.", "C) El vector de términos independientes.", "D) La matriz identidad."], answer: 1, explanation: "$A$ representa los coeficientes numéricos del sistema de ecuaciones." },
+        { id: 79, block: "Bloque 8: Matrices e Inversa", question: "Al despejar $x$ en la ecuación $A x = b$ (asumiendo que $A$ es invertible), ¿cuál es la solución única?", options: ["A) $x = b A^{-1}$", "B) $x = A^{-1} b$", "C) $x = A b^{-1}$", "D) $x = b / A$"], answer: 1, explanation: "Multiplicando por la izquierda por $A^{-1}$: $A^{-1}Ax = A^{-1}b \\implies x = A^{-1}b$." },
+        { id: 80, block: "Bloque 8: Matrices e Inversa", question: "¿Qué igualdad se debe cumplir para comprobar que $A^{-1}$ es la inversa válida de $A$?", options: ["A) $A + A^{-1} = 0$", "B) $A A^{-1} = I$", "C) $A A^{-1} = A$", "D) $A^T A^{-1} = I$"], answer: 1, explanation: "Por definición, el producto de una matriz por su inversa produce la matriz identidad $I$." },
+        { id: 81, block: "Bloque 9: Tipos de Matrices", question: "¿Cómo se define una Matriz Escalar?", options: ["A) Ceros en la diagonal.", "B) Una matriz diagonal con todos sus elementos diagonales iguales entre sí.", "C) Posee más filas que columnas.", "D) Un vector fila."], answer: 1, explanation: "Una matriz escalar es un múltiplo de la identidad $c I$." },
+        { id: 82, block: "Bloque 9: Tipos de Matrices", question: "¿Qué caracteriza a una Matriz Triangular Superior?", options: ["A) Todos los elementos por debajo de la diagonal principal son ceros ($a_{ij} = 0$ para $i > j$).", "B) Ceros por encima de la diagonal.", "C) Matriz no cuadrada.", "D) Consta de una sola fila."], answer: 0, explanation: "Todas las entradas por debajo de la diagonal principal son strictly iguales a cero." },
+        { id: 83, block: "Bloque 9: Tipos de Matrices", question: "¿Cómo se define una Matriz Simétrica?", options: ["A) Cumple $A^T = -A$.", "B) Cumple $A^T = A$.", "C) Columnas proporcionales.", "D) Traza igual a $0$."], answer: 1, explanation: "Una matriz es simétrica cuando coincide con su transpuesta ($a_{ij} = a_{ji}$)." },
+        { id: 84, block: "Bloque 9: Tipos de Matrices", question: "¿Cuál es la condición para realizar la suma $A + B$ o resta $A - B$?", options: ["A) Que sean cuadradas.", "B) Que tengan exactamente la misma dimensión ($m \\times n$).", "C) Que columnas de $A$ igualen filas de $B$.", "D) Sin ceros."], answer: 1, explanation: "La suma/resta requiere que ambas matrices tengan el mismo tamaño." },
+        { id: 85, block: "Bloque 9: Tipos de Matrices", question: "¿Bajo qué condición es posible efectuar la multiplicación de matrices $A \\cdot B$?", options: ["A) Mismo número de elementos.", "B) Que el número de columnas de $A$ sea igual al número de filas de $B$.", "C) Si ambas son simétricas.", "D) Mismo número de filas."], answer: 1, explanation: "Para multiplicar $A_{m \\times n}$ por $B_{p \\times q}$ se exige que $n = p$." },
+        { id: 86, block: "Bloque 9: Tipos de Matrices", question: "Si $A$ es $m \\times n$ y $B$ es $n \\times p$, ¿cuál es la dimensión de $C = A B$?", options: ["A) $n \\times n$", "B) $m \\times p$", "C) $p \\times m$", "D) $n \\times p$"], answer: 1, explanation: "El producto resultante hereda las filas de $A$ ($m$) y las columnas de $B$ ($p$)." },
+        { id: 87, block: "Bloque 9: Tipos de Matrices", question: "¿Qué se obtiene al transponer dos veces una matriz: $(A^T)^T$?", options: ["A) $I$", "B) La matriz original $A$", "C) $A^{-1}$", "D) La matriz nula"], answer: 1, explanation: "Transponer dos veces restaura la matriz a su estado original." },
+        { id: 88, block: "Bloque 9: Tipos de Matrices", question: "¿A qué equivale la transpuesta de un producto $(A B)^T$?", options: ["A) $A^T B^T$", "B) $B^T A^T$", "C) $B A$", "D) $A B^T$"], answer: 1, explanation: "La transpuesta invierte el orden de la multiplicación: $(AB)^T = B^T A^T$." },
+        { id: 89, block: "Bloque 9: Tipos de Matrices", question: "¿Cuándo dos matrices $A$ y $B$ son strictly iguales ($A = B$)?", options: ["A) Mismo determinante.", "B) Tienen el mismo tamaño y sus elementos correspondientes son idénticos ($a_{ij} = b_{ij}$).", "C) Misma traza.", "D) Si son identidades."], answer: 1, explanation: "La igualdad requiere coincidencia exacta en posición y valor para todas las entradas." },
+        { id: 90, block: "Bloque 9: Tipos de Matrices", question: "¿Qué ocurre al multiplicar una matriz $B$ por un escalar $c$?", options: ["A) Solo se multiplica la diagonal.", "B) Cada elemento individual $b_{ij}$ se multiplica por $c$.", "C) Se suma $c$ a la primera fila.", "D) Cambia de tamaño."], answer: 1, explanation: "El escalar multiplica absolutamente todos los componentes de la matriz." },
+        { id: 91, block: "Bloque 10: Determinantes", question: "¿A qué tipo de matrices se les puede calcular un determinante?", options: ["A) Exclusivamente a las matrices cuadradas ($n \\times n$).", "B) A cualquier matriz rectangular $m \\times n$.", "C) Solo a matrices fila.", "D) Únicamente a matrices $2 \\times 2$."], answer: 0, explanation: "El determinante es un escalar asociado únicamente a matrices cuadradas." },
+        { id: 92, block: "Bloque 10: Determinantes", question: "En una matriz $2 \\times 2$, ¿cómo se calcula su determinante?", options: ["A) Sumando los $4$ valores.", "B) Resta del producto de la diagonal principal menos la secundaria: $a_{11}a_{22} - a_{12}a_{21}$.", "C) Producto de la primera fila.", "D) División de filas."], answer: 1, explanation: "Fórmula del determinante $2 \\times 2$: $(a_{11}a_{22}) - (a_{12}a_{21})$." },
+        { id: 93, block: "Bloque 10: Determinantes", question: "¿Cuál es la notación estándar para el determinante de la matriz $A$?", options: ["A) $\\det(A)$ o $|A|$", "B) $A^{-1}$ o $A^T$", "C) $\\text{Tr}(A)$", "D) $\\Delta(A)^*$"], answer: 0, explanation: "Las notaciones tradicionales son $\\det(A)$ o encerrado en barras verticales $|A|$." },
+        { id: 94, block: "Bloque 10: Determinantes", question: "¿A qué equivale el determinante del producto $\\det(A B)$?", options: ["A) $\\det(A) + \\det(B)$", "B) $\\det(A) \\cdot \\det(B)$", "C) $\\det(A) / \\det(B)$", "D) $(\\det(A))^n$"], answer: 1, explanation: "El determinante es multiplicativo: $\\det(AB) = \\det(A) \\cdot \\det(B)$." },
+        { id: 95, block: "Bloque 10: Determinantes", question: "Si $A$ es de orden $n \\times n$ y $c$ es un escalar, ¿a qué equivale $\\det(c A)$?", options: ["A) $c \\cdot \\det(A)$", "B) $c^n \\cdot \\det(A)$", "C) $\\frac{1}{c} \\cdot \\det(A)$", "D) $n \\cdot \\det(A)$"], answer: 1, explanation: "Al multiplicar una matriz $n \\times n$ por $c$, el escalar sale como $c^n$ del determinante." },
+        { id: 96, block: "Bloque 10: Determinantes", question: "¿Qué condición en el determinante indica que $A$ es una matriz invertible?", options: ["A) $\\det(A) = 0$", "B) $\\det(A) \\neq 0$", "C) $\\det(A) > 1$", "D) $\\det(A) < 0$"], answer: 1, explanation: "Una matriz cuadrada tiene inversa si y solo si su determinante es diferente de cero." },
+        { id: 97, block: "Bloque 10: Determinantes", question: "Si $A$ es invertible, ¿a qué equivale $\\det(A^{-1})$?", options: ["A) $-\\det(A)$", "B) $\\frac{1}{\\det(A)}$", "C) $(\\det(A))^n$", "D) $1 - \\det(A)$"], answer: 1, explanation: "$\\det(A^{-1}) = (\\det(A))^{-1} = 1 / \\det(A)$." },
+        { id: 98, block: "Bloque 10: Determinantes", question: "¿Qué relación existe entre $\\det(A)$ y $\\det(A^T)$?", options: ["A) $\\det(A) = -\\det(A^T)$", "B) $\\det(A) = \\det(A^T)$", "C) $\\det(A) = 1 / \\det(A^T)$", "D) Sin relación."], answer: 1, explanation: "Transponer una matriz no altera en absoluto el valor de su determinante." },
+        { id: 99, block: "Bloque 10: Determinantes", question: "Si $\\det(A) = 0$, ¿cómo se denomina a la matriz $A$?", options: ["A) Matriz regular.", "B) Matriz singular (no invertible).", "C) Matriz identidad.", "D) Matriz ortogonal."], answer: 1, explanation: "Toda matriz cuadrada con determinante cero es llamada singular." },
+        { id: 100, block: "Bloque 10: Determinantes", question: "Si una matriz $3 \\times 3$ se multiplica por el escalar $c = 2$, ¿por qué factor se multiplica su determinante?", options: ["A) Por $2$", "B) Por $6$", "C) Por $8$ ($2^3$)", "D) Por $9$"], answer: 2, explanation: "Como $n = 3$, el determinante escala por $c^n = 2^3 = 8$." },
+        { id: 101, block: "Bloque 11: Cofactores y Cramer", question: "¿Cómo se define el Menor $M_{ij}$ de un elemento $a_{ij}$ en $A$?", options: ["A) Fila $i$ + columna $j$.", "B) El determinante de la submatriz resultante al eliminar la fila $i$ y la columna $j$.", "C) La diagonal secundaria.", "D) La inversa de la submatriz."], answer: 1, explanation: "$M_{ij}$ es el determinante de la submatriz eliminando fila $i$ y columna $j$." },
+        { id: 102, block: "Bloque 11: Cofactores y Cramer", question: "¿Cuál es la relación matemática entre el Cofactor $A_{ij}$ y el Menor $M_{ij}$?", options: ["A) $A_{ij} = (-1)^{i+j} M_{ij}$", "B) $A_{ij} = (i+j) M_{ij}$", "C) $A_{ij} = M_{ij} / (-1)$", "D) $A_{ij} = (M_{ij})^2$"], answer: 0, explanation: "El cofactor añade el signo alternado $(-1)^{i+j}$ al menor $M_{ij}$." },
+        { id: 103, block: "Bloque 11: Cofactores y Cramer", question: "¿Cómo se llama el método de expansión de determinantes por una fila o columna?", options: ["A) Eliminación de Gauss.", "B) Expansión por cofactores (Desarrollo de Laplace).", "C) Mínimos cuadrados.", "D) Factorización LU."], answer: 1, explanation: "Consiste en calcular el determinante multiplicando elementos por sus respectivos cofactores." },
+        { id: 104, block: "Bloque 11: Cofactores y Cramer", question: "¿Cómo se determina el determinante de una matriz triangular (superior o inferior)?", options: ["A) Sumando la última columna.", "B) Multiplicando las entradas de su diagonal principal: $\\prod a_{ii}$.", "C) Dividiendo la primera fila para la última.", "D) Siempre da $1$."], answer: 1, explanation: "El determinante de cualquier matriz triangular es el producto directo de su diagonal principal." },
+        { id: 105, block: "Bloque 11: Cofactores y Cramer", question: "¿Qué sucede con el determinante si una matriz contiene una fila o columna completamente nula?", options: ["A) Es igual a $1$.", "B) Vale strictly $0$.", "C) Indeterminado.", "D) Depende del tamaño."], answer: 1, explanation: "Una fila o columna entera de ceros produce inmediatamente un determinante nulo." },
+        { id: 106, block: "Bloque 11: Cofactores y Cramer", question: "Si dos filas de una matriz son exactamente idénticas, ¿cuánto vale su determinante?", options: ["A) Es igual a $0$.", "B) Se duplica.", "C) Se vuelve negativo.", "D) Vale $1$."], answer: 0, explanation: "Filas idénticas representan dependencia lineal, resultando en un determinante cero." },
+        { id: 107, block: "Bloque 11: Cofactores y Cramer", question: "Si una fila es múltiplo escalar de otra fila en $A$, ¿cuál es su determinante?", options: ["A) El escalar.", "B) Cero.", "C) Uno.", "D) El cuadrado de la diagonal."], answer: 1, explanation: "Filas proporcionales generan un determinante igual a cero." },
+        { id: 108, block: "Bloque 11: Cofactores y Cramer", question: "¿Cuáles son las condiciones requeridas para aplicar la Regla de Cramer en $A x = b$?", options: ["A) Sistema cuadrado ($n \\times n$) con $\\det(A) \\neq 0$.", "B) Matriz $A$ singular.", "C) Vector $b$ nulo.", "D) $\\det(A) = 0$."], answer: 0, explanation: "La Regla de Cramer aplica a sistemas cuadrados con solución única (matriz no singular)." },
+        { id: 109, block: "Bloque 11: Cofactores y Cramer", question: "En la Regla de Cramer, ¿cómo se construye la matriz $A_i$ para calcular la incógnita $x_i$?", options: ["A) Sustituyendo la $i$-ésima columna de $A$ por el vector columna de términos independientes $b$.", "B) Eliminando fila $i$ y columna $i$.", "C) Multiplicando $A$ por $b$.", "D) Invirtiendo la fila $i$."], answer: 0, explanation: "$x_i = \\det(A_i) / \\det(A)$, donde $A_i$ reemplaza la columna $i$ por el vector $b$." },
+        { id: 110, block: "Bloque 11: Cofactores y Cramer", question: "¿Para qué tipos de sistemas está orientada la Regla de Cramer?", options: ["A) Sistemas con solución única determinada.", "B) Sistemas inconsistentes sin solución.", "C) Sistemas con infinitas soluciones.", "D) Sistemas rectangulares."], answer: 0, explanation: "Está diseñada para calcular explícitamente la solución única de un sistema determinado." },
+        { id: 111, block: "Bloque 12: Matriz Adjunta", question: "¿Cómo se define la Matriz Adjunta $\\text{adj}(A)$?", options: ["A) Cambiando signos de la diagonal.", "B) Como la transpuesta de la matriz de cofactores de $A$: $\\text{adj}(A) = (A_c)^T$.", "C) Como $A \\cdot \\det(A)$.", "D) Como $A^{-1} I$."], answer: 1, explanation: "La matriz adjunta es la matriz transpuesta de la matriz formada por los cofactores de $A$." },
+        { id: 112, block: "Bloque 12: Matriz Adjunta", question: "¿Cómo se construye la Matriz de Cofactores $A_c$?", options: ["A) Reemplazando la primera columna por el determinante.", "B) Reemplazando cada posición $a_{ij}$ por su cofactor correspondiente $A_{ij}$.", "C) Intercambiando diagonales.", "D) Multiplicando por $n$."], answer: 1, explanation: "$A_c$ contiene los valores de los cofactores $A_{ij}$ en cada casilla." },
+        { id: 113, block: "Bloque 12: Matriz Adjunta", question: "En una matriz $3 \\times 3$, ¿cuál es la matriz de signos para los cofactores $(-1)^{i+j}$?", options: ["A) $[ + \\ + \\ + ; - \\ - \\ - ; + \\ + \\ + ]$", "B) $[ + \\ - \\ + ; - \\ + \\ - ; + \\ - \\ + ]$", "C) $[ - \\ + \\ - ; + \\ - \\ + ; - \\ + \\ - ]$", "D) $[ + \\ - \\ - ; - \\ + \\ - ; - \\ - \\ + ]$"], answer: 1, explanation: "Patrón ajedrezado alternado que inicia con positivo ($+$) en $(1,1)$." },
+        { id: 114, block: "Bloque 12: Matriz Adjunta", question: "¿Cuál es la fórmula clásica para calcular $A^{-1}$ usando la Matriz Adjunta?", options: ["A) $A^{-1} = \\det(A) \\cdot \\text{adj}(A)$", "B) $A^{-1} = \\frac{1}{\\det(A)} \\cdot \\text{adj}(A)$", "C) $A^{-1} = \\text{adj}(A) / A_c$", "D) $A^{-1} = (A \\cdot \\text{adj}(A))^T$"], answer: 1, explanation: "La inversa es la matriz adjunta dividida para el determinante de la matriz." },
+        { id: 115, block: "Bloque 12: Matriz Adjunta", question: "Para poder aplicar $A^{-1} = \\frac{1}{\\det(A)} \\text{adj}(A)$, ¿qué condición debe tener $\\det(A)$?", options: ["A) $\\det(A) > 1$", "B) $\\det(A) = 0$", "C) $\\det(A) \\neq 0$", "D) $\\det(A)$ entero positivo"], answer: 2, explanation: "No se puede dividir por cero, por lo tanto requiere un determinante no nulo." },
+        { id: 116, block: "Bloque 12: Matriz Adjunta", question: "¿Qué operación convierte la Matriz de Cofactores $A_c$ en $\\text{adj}(A)$?", options: ["A) Inversión escalar.", "B) Transposición (intercambiar filas por columnas).", "C) Producto por cero.", "D) Reducción por filas."], answer: 1, explanation: "La adjunta es exactamente la transpuesta de la matriz de cofactores." },
+        { id: 117, block: "Bloque 12: Matriz Adjunta", question: "Si $\\det(A) = 0$, ¿qué ocurre con la expresión de la inversa por la adjunta?", options: ["A) Se vuelve igual a $I$.", "B) No existe la inversa debido a una división para cero.", "C) Equivale a la adjunta.", "D) Vale $1$."], answer: 1, explanation: "El determinante cero impide calcular la inversa matricial." },
+        { id: 118, block: "Bloque 12: Matriz Adjunta", question: "En la matriz de cofactores, ¿cómo se determina el elemento $A_{ij}$?", options: ["A) $M_{ij} \\cdot \\det(A)$", "B) $(-1)^{i+j} M_{ij}$", "C) $a_{ij} + i + j$", "D) $a_{ij} / M_{ij}$"], answer: 1, explanation: "Se aplica la fórmula del cofactor $A_{ij} = (-1)^{i+j} M_{ij}$." },
+        { id: 119, block: "Bloque 12: Matriz Adjunta", question: "Si $A_c$ es $3 \\times 3$, ¿dónde se ubica el cofactor $A_{12}$ al pasar a $\\text{adj}(A)$?", options: ["A) En la posición $(1,2)$", "B) En la posición $(2,1)$", "C) En la posición $(3,1)$", "D) En la posición $(2,2)$"], answer: 1, explanation: "Al transponer, la entrada de fila 1 y columna 2 se mueve a la fila 2 y columna 1." },
+        { id: 120, block: "Bloque 12: Matriz Adjunta", question: "En $A^{-1} = \\frac{1}{\\det(A)} \\text{adj}(A)$, ¿qué tipo de operación matricial representa $\\frac{1}{\\det(A)}$?", options: ["A) Multiplicación de dos matrices.", "B) Producto de un escalar por una matriz.", "C) División de vectores.", "D) Suma en la diagonal."], answer: 1, explanation: "$1/\\det(A)$ es un número escalar que multiplica cada componente de la matriz adjunta." }
+    ];
+
+    const blocksList = ["Todas (120)", "Bloque 1 (1-10)", "Bloque 2 (11-20)", "Bloque 3 (21-30)", "Bloque 4 (31-40)", "Bloque 5 (41-50)", "Bloque 6 (51-60)", "Bloque 7 (61-70)", "Bloque 8 (71-80)", "Bloque 9 (81-90)", "Bloque 10 (91-100)", "Bloque 11 (101-110)", "Bloque 12 (111-120)"];
+
+    let currentQuestionsList = [...questions];
+    let currentIndex = 0;
+    let userAnswers = new Array(questions.length).fill(null);
+
+    function initFilters() {
+        const container = document.getElementById("filters-container");
+        container.innerHTML = "";
+        blocksList.forEach((bName, idx) => {
+            const btn = document.createElement("button");
+            btn.className = `filter-btn ${idx === 0 ? 'active' : ''}`;
+            btn.innerText = bName;
+            btn.onclick = () => applyFilter(idx);
+            container.appendChild(btn);
+        });
+    }
+
+    function applyFilter(filterIdx) {
+        const buttons = document.querySelectorAll(".filter-btn");
+        buttons.forEach((btn, idx) => btn.classList.toggle("active", idx === filterIdx));
+
+        if (filterIdx === 0) {
+            currentQuestionsList = [...questions];
+        } else {
+            const start = (filterIdx - 1) * 10 + 1;
+            const end = filterIdx * 10;
+            currentQuestionsList = questions.filter(q => q.id >= start && q.id <= end);
+        }
+
+        currentIndex = 0;
+        loadQuestion();
+    }
+
+    function loadQuestion() {
+        const q = currentQuestionsList[currentIndex];
+        const globalIdx = q.id - 1;
+
+        updateStats();
+
+        document.getElementById("block-badge").innerText = q.block;
+        document.getElementById("question-index-label").innerText = `Pregunta ${currentIndex + 1} / ${currentQuestionsList.length}`;
+        document.getElementById("question-title").innerText = `${q.id}. ${q.question}`;
+
+        const optionsContainer = document.getElementById("options-container");
+        optionsContainer.innerHTML = "";
+
+        q.options.forEach((opt, idx) => {
+            const li = document.createElement("li");
+            li.className = "option-item";
+            li.innerText = opt;
+            li.onclick = () => selectOption(globalIdx, idx);
+
+            if (userAnswers[globalIdx] !== null) {
+                li.classList.add("disabled");
+                if (idx === q.answer) {
+                    li.classList.add("correct");
+                } else if (idx === userAnswers[globalIdx]) {
+                    li.classList.add("incorrect");
+                }
+            }
+            optionsContainer.appendChild(li);
+        });
+
+        const feedbackBox = document.getElementById("feedback-box");
+        if (userAnswers[globalIdx] !== null) {
+            feedbackBox.style.display = "block";
+            const isCorrect = userAnswers[globalIdx] === q.answer;
+            feedbackBox.className = `feedback-box ${isCorrect ? 'correct' : 'incorrect'}`;
+            feedbackBox.innerHTML = `<strong>${isCorrect ? '¡Correcto!' : 'Incorrecto.'}</strong> ${q.explanation}`;
+        } else {
+            feedbackBox.style.display = "none";
+        }
+
+        document.getElementById("prev-btn").disabled = currentIndex === 0;
+        document.getElementById("next-btn").disabled = currentIndex === currentQuestionsList.length - 1;
+
+        if (window.MathJax && window.MathJax.typesetPromise) {
+            MathJax.typesetPromise();
+        }
+    }
+
+    function selectOption(globalIdx, optionIdx) {
+        if (userAnswers[globalIdx] !== null) return;
+        userAnswers[globalIdx] = optionIdx;
+        loadQuestion();
+    }
+
+    function updateStats() {
+        let correct = 0, incorrect = 0, answered = 0;
+        userAnswers.forEach((ans, idx) => {
+            if (ans !== null) {
+                answered++;
+                if (ans === questions[idx].answer) correct++;
+                else incorrect++;
+            }
+        });
+
+        document.getElementById("correct-count").innerText = correct;
+        document.getElementById("incorrect-count").innerText = incorrect;
+        document.getElementById("progress-text").innerText = `${answered} / ${questions.length}`;
+        document.getElementById("progress-fill").style.width = `${(answered / questions.length) * 100}%`;
+    }
+
+    function nextQuestion() {
+        if (currentIndex < currentQuestionsList.length - 1) {
+            currentIndex++;
+            loadQuestion();
+        }
+    }
+
+    function prevQuestion() {
+        if (currentIndex > 0) {
+            currentIndex--;
+            loadQuestion();
+        }
+    }
+
+    function restartQuiz() {
+        userAnswers.fill(null);
+        applyFilter(0);
+    }
+
+    window.onload = () => {
+        initFilters();
+        loadQuestion();
+    };
+</script>
+
+</body>
+</html>
+EOF
+
+echo "--------------------------------------------------------"
+echo "¡LISTO! Todos los archivos necesarios han sido creados."
+echo "Ahora sube la carpeta a GitHub para compilar tu APK."
+echo "--------------------------------------------------------"
