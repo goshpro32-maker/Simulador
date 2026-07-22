@@ -25,10 +25,10 @@ jobs:
         run: |
           npm install
 
-      - name: Generar proyecto Android
+      - name: Generar y Sincronizar proyecto Android
         run: |
-          npx cap add android
-          npx cap copy android
+          npx cap add android || true
+          npx cap sync android
 
       - name: Compilar APK con Gradle
         run: |
