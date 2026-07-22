@@ -25,6 +25,11 @@ jobs:
         run: |
           npm install
 
+      - name: Preparar carpeta web (www)
+        run: |
+          mkdir -p www
+          cp index.html www/
+
       - name: Generar y Sincronizar proyecto Android
         run: |
           npx cap add android || true
